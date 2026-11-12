@@ -4,6 +4,9 @@ import { composePrompt, defaultPrompts } from '../src/app/prompts.ts'
 import { bundledSkills, promptFile } from '../src/app/skill-files.ts'
 import { TICKET_STATES, decisionCard, decisionDetails, ticketCard, ticketDetails, triggerCard, threadCard } from '../src/app/cards.ts'
 import { key, said, type Decision, type Thread, type Ticket, type Trigger } from '../src/core/index.ts'
+import { testDeployment } from './fixtures/deployment.ts'
+/** The card helpers must know whether a ticket's review unit is a PR or an MR. */
+const hosted = testDeployment()
 
 /**
  * Built-in prompt and skill contract: target file (`skill <name>` for a bundled skill, `*` for both composed prompts),
@@ -50,7 +53,7 @@ const RULES: [rule: string, file: string, says: string[], gone?: string[]][] = [
   ['A person\'s follow-up is its ticket\'s worker\'s to decide; the main Session only stops the work on request', 'dispatch',
     ['a human follow-up becomes new work only once its ticket\'s worker hands it back'], ['related human follow-ups can']],
   ['A question for a person is asked through the report, not left where nobody reads it', 'work',
-    ['Do not leave the question only in summary, GitHub or the Session and wait.']],
+    ['Do not leave the question only in summary, the review host or the Session and wait.']],
   ['A person\'s follow-up is its ticket\'s worker\'s to decide; the main Session only stops the work on request', 'work',
     ['Decide every person\'s message on this ticket\'s own threads yourself', 'back with orchestrator_trigger_handback',
       'never drop a request silently', 'leave ordinary discussion unanswered']],
@@ -96,7 +99,7 @@ const RULES: [rule: string, file: string, says: string[], gone?: string[]][] = [
   ['The main Session never merges, closes issues or shows private Feishu content on GitHub', 'orchestrator',
     ['Never merge or enable auto-merge yourself, close issues or expose private Feishu content on GitHub.']],
   ['An Executor merges only as the delivery requirements say, closes no issue and keeps private Feishu content off GitHub', 'worker',
-    ['Never merge a PR directly or enable auto-merge other than as the Delivery requirements section says, close issues or expose private Feishu content on GitHub.']],
+    ['Never merge a review unit or enable auto-merge except as Delivery requirements says, close issues, or expose private Feishu content.']],
   ['Reading context changes nothing', 'cli', ['Do not alter remote state, authorization, or configuration while reading.']],
   ['Feishu is read as the bot, never as a person', 'cli', ['Feishu uses --as bot; unavailable content does not authorize switching to the user\'s identity.']],
   ['Every GitHub message says an automated agent wrote it', 'team/communication',
@@ -135,7 +138,7 @@ it('shows a trigger and a ticket as cards with a short preview and references to
   const { policyVersion: _version, ...mandate } = ticket.mandate
   const threads = [{ thread: 'github:42', bound: true as const }]
   const batch = [{ ...trigger, id: 'request-2', text: 'Also the flaky one.' }]
-  expect(ticketDetails(ticket, threads, batch)).toEqual({ ticket_id: 'ticket-1', title: 'Inspect failing check',
+  expect(ticketDetails(ticket, threads, batch, hosted)).toEqual({ ticket_id: 'ticket-1', title: 'Inspect failing check',
     state: 'person/review', strength: 'explicit', pr_number: 42, read: 'ticket/ticket-1', trigger_id: 'request-1', decision_id: 'd1',
     batch: [{ trigger_id: 'request-2', from: 'alice', at: trigger.at, preview: 'Also the flaky one.', read: 'trigger/request-2' }],
     threads, directory: '/worktrees/ticket-1', scope: mandate.scope, requested_by: 'alice', inputs: { items: [] },
@@ -143,13 +146,13 @@ it('shows a trigger and a ticket as cards with a short preview and references to
       chars: SUMMARY.length, read: 'ticket/ticket-1/report/a1' } }] },
     assignment: 'ticket/ticket-1/assignment', result: 'ticket/ticket-1/result', transcript: 'ticket/ticket-1/transcript' })
   // Its worker reads no Decision, so it sees no Decision's id.
-  expect(ticketDetails({ ...ticket, inputs: [{ id: 'r', kind: 'reopen', decisionId: 'd2', at: '1' }] }, threads, [], true)).toMatchObject({
+  expect(ticketDetails({ ...ticket, inputs: [{ id: 'r', kind: 'reopen', decisionId: 'd2', at: '1' }] }, threads, [], hosted, true)).toMatchObject({
     inputs: { items: [{ kind: 'reopen', read: `ticket/ticket-1/input/${key('r')}` }] } })
-  expect(JSON.stringify(ticketDetails({ ...ticket, inputs: [{ id: 'r', kind: 'reopen', decisionId: 'd2', at: '1' }] }, threads, [], true))).not.toMatch(/"d[12]"/)
+  expect(JSON.stringify(ticketDetails({ ...ticket, inputs: [{ id: 'r', kind: 'reopen', decisionId: 'd2', at: '1' }] }, threads, [], hosted, true))).not.toMatch(/"d[12]"/)
   // The latest ten Inputs, newest first, each read by the name its line gives; the next page reads from the Inputs' own list.
   const inputs = Array.from({ length: 12 }, (_, n) => ({ id: `text:${n}`, kind: 'text' as const, text: `Note ${n}`, at: String(n) }))
   const page = ticketDetails({ ...ticket, inputs: [...inputs, { id: 'text:long', kind: 'text', text: 'Long note. '.repeat(10), at: '12' }], undelivered: ['text:11'] },
-    [], []).inputs
+    [], [], hosted).inputs
   // A short text is inline; a longer one shows a preview and reads through the Input's resource.
   expect([page.items.length, page.items[0], page.items[1], page.next_resource, page.next_offset]).toEqual([10, { kind: 'text', at: '12',
     preview: expect.stringMatching(/^Long note\./), chars: 110, read: `ticket/ticket-1/input/${key('text:long')}` },
@@ -164,12 +167,12 @@ it('shows a ticket card\'s state from a closed set: the open ticket\'s stage, th
     [{ ...ticket, ended: { at: 'e', by: 'human', reason: 'Not needed after all', outcome: 'stopped' } }, 'stopped'],
     [{ ...ticket, ended: { at: 'e', by: 'executor', reason: 'merged', outcome: 'merged' } }, 'merged'],
   ]
-  for (const [item, state] of cases) expect(ticketCard(item).state).toBe(state)
-  expect(cases.map(([item]) => ticketCard(item).state).every(state => (TICKET_STATES as readonly string[]).includes(state))).toBe(true)
-  expect(ticketCard(cases[8]![0])).toMatchObject({ ended: { at: 'e', by: 'human', reason: 'Not needed after all' } })
-  expect(ticketCard(ticket)).toMatchObject({ ticket_id: 'ticket-1', pr_number: 42, strength: 'explicit' })
-  expect(ticketCard(ticket)).not.toHaveProperty('attention')
-  expect(ticketCard({ ...ticket, attention: { id: 'q', question: 'Desktop too?' } })).toMatchObject({ attention: { question: 'Desktop too?' } })
+  for (const [item, state] of cases) expect(ticketCard(item, hosted).state).toBe(state)
+  expect(cases.map(([item]) => ticketCard(item, hosted).state).every(state => (TICKET_STATES as readonly string[]).includes(state))).toBe(true)
+  expect(ticketCard(cases[8]![0], hosted)).toMatchObject({ ended: { at: 'e', by: 'human', reason: 'Not needed after all' } })
+  expect(ticketCard(ticket, hosted)).toMatchObject({ ticket_id: 'ticket-1', pr_number: 42, strength: 'explicit' })
+  expect(ticketCard(ticket, hosted)).not.toHaveProperty('attention')
+  expect(ticketCard({ ...ticket, attention: { id: 'q', question: 'Desktop too?' } }, hosted)).toMatchObject({ attention: { question: 'Desktop too?' } })
 })
 it('shows a decision with snake_case keys and a reference to its details', () => {
   const decision: Decision = { id: 'd1', evalId: 'e1', threadKey: 'github:42', triggerIds: ['request-1'], policyVersion: 'v1', at: 'a', kind: 'accept', reason: [said('r')],

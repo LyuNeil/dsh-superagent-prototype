@@ -12,9 +12,22 @@ import { testDeployment } from './fixtures/deployment.ts'
 const sources = new SourceRegistry(() => SettingsSchema.parse({}))
 sources.register(feishuKind); sources.register(githubKind)
 const send = (commands: Commands, message: OutboundMessage) => sources.send(message, commands)
-const deployment = testDeployment({ github: { ...testDeployment().github, cli: '/path/agent-gh' } })
+const deployment = testDeployment({ github: { ...testDeployment().github!, cli: '/path/agent-gh' } })
 const REPOSITORY = deployment.repository
 const reply = { id: 'stable-operation', channel: githubChannel(8), text: 'Done', kind: 'reply' as const }
+describe('gitlab command', () => {
+  it('runs the packaged command by absolute path with the state directory named, never through PATH', async () => {
+    const commands = new Commands(() => testDeployment({ git: 'gitlab', gitlab: { host: 'https://git.example.com', project: 'team/widgets',
+      token: 't', login: 'agent', userId: 1, noreply: '1+agent@x', defaultBranch: 'main' }, github: undefined }), {}, new AbortController().signal)
+    const run = vi.spyOn(commands, 'run').mockResolvedValue('[]')
+    await commands.gitlab(['api', 'GET', 'projects/:id'])
+    // The packaged script is resolved from the package root, not found by name: the host's
+    // PATH leaves out the worker shim directory, so a PATH lookup would fail (ENOENT).
+    expect(run).toHaveBeenCalledWith(expect.stringMatching(/gitlab-cli\.sh$/), ['api', 'GET', 'projects/:id'], undefined,
+      { DSH_SUPERAGENT_STATE_DIR: testDeployment().stateDir })
+  })
+})
+
 describe('account-isolated operations', () => {
   it('uses the agent account\'s GitHub CLI and preserves literal shell metacharacters in argv', async () => {
     const commands = new Commands(() => deployment, {}, new AbortController().signal); const run = vi.spyOn(commands,'run').mockResolvedValue('{}')

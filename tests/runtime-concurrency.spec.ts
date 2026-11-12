@@ -932,11 +932,12 @@ describe('the Executor\'s parts', () => {
   it('relays a worker\'s question, result or answer to the main Session, and keeps its progress internal', () => {
     const ticket = { id: 't1', title: 'Fix', updatedAt: '2026-09-01T00:00:00Z', attention: { id: 'a1', question: 'Which color?' }, assignments: [],
       mandate: { strength: 'explicit' }, origin: { triggerId: 'tr1' } } as unknown as Ticket
-    expect(reportRelay(ticket, { state: 'progress', summary: 'halfway' })).toBeUndefined()
-    expect(reportRelay(ticket, { state: 'blocked', summary: 'need input', question: 'Which color?' }))
+    const hosted = { git: 'github' as const }
+    expect(reportRelay(ticket, { state: 'progress', summary: 'halfway' }, hosted)).toBeUndefined()
+    expect(reportRelay(ticket, { state: 'blocked', summary: 'need input', question: 'Which color?' }, hosted))
       .toMatchObject({ id: 'attention:t1:a1', text: expect.stringContaining('"kind":"worker_attention"') })
     const ready = reportRelay({ ...ticket, attention: undefined } as unknown as Ticket, { state: 'ready', summary: 'Done',
-      answers: 'tr9' })!
+      answers: 'tr9' }, hosted)!
     expect(ready.id).toMatch(/^report:/)
     expect(JSON.parse(ready.text)).toMatchObject({ kind: 'worker_report', ticket: { ticket_id: 't1' }, trigger_id: 'tr1', state: 'ready', answer_to: 'tr9', summary: 'Done' })
   })
