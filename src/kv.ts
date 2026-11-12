@@ -55,4 +55,11 @@ export const KV = {
   feishu: { chats: record<Record<string, boolean>>('feishu-chats'), history: family<string, [chat: string]>('feishu-history:'),
     topics: family<Record<string, string>, [chat: string]>('feishu-history-threads:'),
     seen: family<string[], [thread: string]>('thread-seen:'), initialized: family<boolean, [thread: string]>('thread-initialized:') },
+  /**
+   * GitLab Source: the project-wide issue, merge request and note stream cursors (each with the time it was switched on),
+   * the default branch's last pipeline status, and the note ids already read on each subscribed thread.
+   */
+  gitlab: { stream: family<{ since: string; started: string }, [stream: string]>('gitlab-stream:'),
+    branchPipeline: record<{ branch: string; status: string }>('gitlab-branch-pipeline'),
+    threadSeen: family<number[], [thread: string]>('gitlab-thread-seen:') },
 }

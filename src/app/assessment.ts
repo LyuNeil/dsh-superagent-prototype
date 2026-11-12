@@ -9,6 +9,8 @@ import type { Commands } from '../infra/commands.ts'
 import type { Deployment } from '../deployment.ts'
 import { admissionContext } from '../sources/admission-context.ts'
 import { readRepositoryPath } from '../sources/github-read.ts'
+import { readGitlabRepositoryPath } from '../sources/gitlab-read.ts'
+import { gitHost } from '../deployment.ts'
 import type { TriggerContext } from '../sources/kind.ts'
 import { relatedTickets } from './cards.ts'
 import { textPage } from './context.ts'
@@ -215,7 +217,7 @@ export class MasterAssessor implements Assessor {
         return { trigger_id: item.id, actor: item.actor.id, at: item.at, ...text, ...'chars' in text ? { read: `trigger/${item.id}` } : {} }
       }) } : {},
       // The rules are in the main Session's Policy section, which names the version the candidate's Eval was built from.
-      ...relatedTickets(candidate.tickets), policy_version: candidate.policyVersion,
+      ...relatedTickets(candidate.tickets, this.host.deployment), policy_version: candidate.policyVersion,
       thread }
   }
   /**
@@ -263,7 +265,9 @@ export class MasterAssessor implements Assessor {
         body = JSON.stringify({ images: references, next_read: next, ...result.body })
       }
       else {
-        body = await readRepositoryPath(commands, read.path!, read.resource === 'directory' ? 'directory' : 'file')
+        body = gitHost(this.host.deployment) === 'gitlab'
+          ? await readGitlabRepositoryPath(commands, read.path!, read.resource === 'directory' ? 'directory' : 'file')
+          : await readRepositoryPath(commands, read.path!, read.resource === 'directory' ? 'directory' : 'file')
       }
       snapshots.set(cacheKey, body)
       return textPage(read.resource, body, read.offset, 4000)

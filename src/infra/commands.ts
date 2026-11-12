@@ -1,9 +1,11 @@
-/** Subprocess wrapper for running gh, lark-cli, and git commands under the deployment's configured accounts. */
+/** Subprocess wrapper for running gh, gitlab, lark-cli, and git commands under the deployment's configured accounts. */
 import { execFile } from 'node:child_process'
-import { basename } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { basename, join } from 'node:path'
 import { promisify } from 'node:util'
 import { z } from 'zod'
 import type { Deployment } from '../deployment.ts'
+import { gitlabCli, optionalEnvFile } from './paths.ts'
 
 const exec = promisify(execFile)
 const TIMEOUT_MS = 90_000
@@ -65,15 +67,54 @@ export class Commands {
   get deployment(): Deployment { return this.resolved() }
   get repository(): string { return this.deployment.repository }
   withSignal(signal?: AbortSignal): Commands { return signal ? new Commands(this.resolved, this.environment, AbortSignal.any([this.signal, signal])) : this }
-  async run(program: string, args: string[], cwd?: string): Promise<string> {
+  /**
+   * Credential-shaped variables the deployment opts into, read from the optional-env
+   * file (`NAME=value` lines). DSH scrubs credential-shaped names from child
+   * environments, but a deliberately supplied entry survives: these merge after the
+   * scrub, so a skill's CLI finds them. The file is written by the operator, never by
+   * dsh-superagent, and is read on each run so edits apply without a restart.
+   * Absent file: no such variables.
+   */
+  private optionalEnv(): Record<string, string> {
+    let text: string
+    try { text = readFileSync(optionalEnvFile(), 'utf8') } catch { return {} }
+    const values: Record<string, string> = {}
+    for (const line of text.split('\n')) {
+      const at = line.indexOf('=')
+      if (at <= 0 || line.startsWith('#')) continue
+      values[line.slice(0, at).trim()] = line.slice(at + 1).trim()
+    }
+    return values
+  }
+  async run(program: string, args: string[], cwd?: string, extra?: Record<string, string>): Promise<string> {
     try {
       const { stdout } = await exec(program, args, { cwd, signal: this.signal, timeout: TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024,
-        env: { ...process.env, ...this.environment, GH_PROMPT_DISABLED: '1', LARKSUITE_CLI_NO_UPDATE_NOTIFIER: '1', LARKSUITE_CLI_NO_SKILLS_NOTIFIER: '1' } })
+        env: { ...process.env, ...this.environment, GH_PROMPT_DISABLED: '1', LARKSUITE_CLI_NO_UPDATE_NOTIFIER: '1', LARKSUITE_CLI_NO_SKILLS_NOTIFIER: '1',
+          ...this.optionalEnv(), ...extra } })
       return stdout
     } catch (error) { throw commandError(error, program) }
   }
+  /** The agent's GitHub CLI path; throws on a deployment that works on GitLab. */
+  private gitHubCli(): string {
+    const { github } = this.deployment
+    if (!github) throw new Error('This installation has no GitHub account; it works on GitLab')
+    return github.cli
+  }
   /** Runs the agent's GitHub CLI and parses its JSON output; callers should prefer `api`, which is restricted to the configured repository and validates output. */
-  async gh<T>(args: string[]): Promise<T> { return JSON.parse(await this.run(this.deployment.github.cli, args)) as T }
+  async gh<T>(args: string[]): Promise<T> { return JSON.parse(await this.run(this.gitHubCli(), args)) as T }
+  /**
+   * Runs the packaged `gitlab` command by absolute path and returns its raw JSON text.
+   *
+   * The host's `PATH` deliberately leaves out the worker shim directory, so `gitlab` is
+   * never found by name; the path comes from `gitlabCli()`, as `gh`'s wrapper does. The
+   * command reads the token, host and project from files in the state directory, so
+   * `DSH_SUPERAGENT_STATE_DIR` is passed explicitly rather than left to the environment.
+   * Callers that validate the shape parse the text with their own schema.
+   * @throws CliError with GitLab's HTTP status as `code` on failure.
+   */
+  async gitlab(args: string[]): Promise<string> {
+    return this.run(gitlabCli(), args, undefined, { DSH_SUPERAGENT_STATE_DIR: this.deployment.stateDir })
+  }
   /**
    * Calls the GitHub API on a path within the configured repository, validating JSON output when a schema is provided
    * or returning raw CLI output (such as raw files or `--include` headers) when omitted.
@@ -82,7 +123,7 @@ export class Commands {
   async api<T>(schema: z.ZodType<T>, path: string, ...flags: string[]): Promise<T>
   async api(path: string, ...flags: string[]): Promise<string>
   async api<T>(schema: z.ZodType<T> | string, ...rest: string[]): Promise<T | string> {
-    if (typeof schema === 'string') return this.run(this.deployment.github.cli, ['api', this.path(schema), ...rest])
+    if (typeof schema === 'string') return this.run(this.gitHubCli(), ['api', this.path(schema), ...rest])
     const [path = '', ...flags] = rest
     return schema.parse(await this.gh(['api', this.path(path), ...flags]))
   }

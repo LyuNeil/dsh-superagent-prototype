@@ -25,10 +25,12 @@ grep -l -E 'id: dsh-superagent\b' "${DSH_HOME:-$HOME/.dsh}"/profiles/*/cordis.pa
 ```
 
 - **Prerequisites:** Node.js 22.19+ or 24+, pnpm, git 2.32+, tmux, Python 3.8+, GitHub CLI 2.48+, and DSH within the `engines.dsh` range of `package.json`. A missing one becomes an item of the plan, not a question. DSH also needs a model provider; if the operator has never run DSH with a model, configuring one is an operator step.
-- **Operator login:** the `gh api user` result is the operator's own GitHub login, used as the recommendation in question 5.
+- **Operator login:** the `gh api user` result is the operator's own GitHub login, used as the recommendation in question 5. On a GitLab deployment the equivalent is the token's user (`GET /api/v4/user` with the token).
 - **Existing profile:** a profile with a `dsh-superagent` entry is an earlier setup: ask whether to continue it, keep its configuration, and read Upgrade in `docs/006-deployment.md`.
 
 ## 2. Questions
+
+**The git host.** If the repository is not on github.com, ask for its GitLab instance and `group/project`, and treat every GitHub answer below as the GitLab equivalent (a project access token instead of a `gh` login). The GitLab Source takes precedence whenever its host, project and token file are set.
 
 Ask in this order, one per message, following the flow of work in [docs/001-domain.md](docs/001-domain.md): first where Triggers come from, then who may ask for work there, then what the Executor does with a Ticket. Recommendations are in brackets.
 

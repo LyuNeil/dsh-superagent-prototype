@@ -1,12 +1,22 @@
 /** Structured startup and configuration errors with the settings location where the operator can fix them. */
 import { fill } from './infra/text.ts'
 
-export type SetupPlace = 'deployment' | 'github' | 'feishu'
+export type SetupPlace = 'deployment' | 'github' | 'gitlab' | 'feishu'
 export const SETUP_PROBLEMS = {
   foreignFile: ['deployment', '{file} was not written by dsh-superagent; move it, or choose another state directory.'],
-  gitTooOld: ['deployment', 'git does not read the github.com credential configuration dsh-superagent writes; dsh-superagent needs git 2.32 or later.'],
+  gitTooOld: ['deployment', 'git does not read the git host credential configuration dsh-superagent writes; dsh-superagent needs git 2.32 or later.'],
   environmentFailed: ['deployment', 'Preparing the agent environment failed.'],
+    gitlabIncomplete: ['gitlab', 'The GitLab Source needs its host, project and token file, or none of them.'],
+  gitlabHostUnset: ['gitlab', 'The GitLab host is not set.'],
+  gitlabProjectUnset: ['gitlab', 'The GitLab Source names no project.'],
+  gitlabTokenUnset: ['gitlab', 'The GitLab token file is not set.'],
+  gitlabTokenUnreadable: ['gitlab', 'The GitLab token file {file} could not be read: {output}'],
+  gitlabTokenEmpty: ['gitlab', 'The GitLab token file {file} is empty.'],
+  gitlabTokenInvalid: ['gitlab', 'The GitLab token was refused: {output}'],
+  gitlabProjectUnreadable: ['gitlab', 'The GitLab token cannot read {project}: {output}'],
+  gitlabReadOnly: ['gitlab', '@{account} needs at least Developer access to {project}.'],
   repositoryUnset: ['github', 'The GitHub Source names no repository.'],
+  gitlabUnset: ['gitlab', 'Neither the GitLab nor the GitHub Source names a repository.'],
   agentCliUnset: ['github', 'The agent GitHub CLI is not set.'],
   agentCliMissing: ['github', 'The agent GitHub CLI was not found.'],
   agentCliSignedOut: ['github', 'The agent GitHub CLI cannot read its account.'],
