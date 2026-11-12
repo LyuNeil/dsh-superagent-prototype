@@ -4,6 +4,7 @@ Use this guide to install, configure and operate dsh-superagent. It covers accou
 
 ## What runs
 
+- **A git host: GitHub or GitLab.** The agent works on one repository. GitHub is the default; a GitLab project is selected on the GitLab Source and takes precedence when its host, project and token file are set. A GitLab deployment needs no GitHub account, and vice versa.
 - **A dedicated DeepSeek Harness profile**, called `superagent` in this guide. Create it from the Web profile template. It loads the bundle and serves its panel on `127.0.0.1`. Keep it separate from the profile you work in: the plugin changes process-wide `PATH` and git settings, and its process needs independent restarts and upgrades.
 - **An agent GitHub account.** The agent comments, pushes branches and opens pull requests as this account, through a GitHub CLI signed in only as that account.
 - **Optional:** a Feishu bot for chat requests.
@@ -45,6 +46,21 @@ Both presets run with `danger-full-access` as the operator's OS user and read me
    ```
 
    Sign in as the agent account; the last command prints its login. dsh-superagent reads the login the same way.
+
+### Agent GitLab account (optional, instead of GitHub)
+
+1. Create a project access token or a bot user's personal access token with the `api` scope and at least Developer access to the project. A project access token acts as one project bot account; a bot user with a personal access token is a separate identity the team can recognize.
+2. Write the token to a file the service can read, outside the repository:
+
+   ```sh
+   install -m 600 /dev/null ~/.config/dsh-superagent/gitlab-token
+   printf '%s' '<token>' > ~/.config/dsh-superagent/gitlab-token
+   ```
+
+   The token is read at startup into memory and never written to settings, the database or the log. Workers get their own copy under `<stateDir>/worker-git-credential`, mode 600, for `git push` and the `gitlab` command.
+3. Set the GitLab Source's **host** (for example `https://git.voyah.cn`), **project** (`group/project`) and **token file**. Saving checks the token's user and its access level, then restarts dsh-superagent.
+
+GitLab's web UI shows a merge request as `!<iid>`; the agent replies with notes on the issue or merge request.
 
 ### Feishu bot (optional)
 
@@ -144,7 +160,7 @@ Check dsh-superagent: run `scripts/dsh-superagent --profile superagent status` i
 
 Setup must succeed before polling or work starts. Overview lists missing requirements and links to their settings. A settings change runs setup again. If you fix something outside the application, such as CLI authentication, choose **Check again**.
 
-1. **Sources.** Set the GitHub repository (`owner/name`) and agent CLI, for example `/home/me/.local/bin/gh-agent`. Requests normally arrive through the agent account's notifications. A new Issue or comment mentioning the account arrives on the next poll; adding a mention by editing an existing Issue body does not. Post a new comment instead. For Feishu, set the bot CLI, chats, each chat's receive-all or mentions-only mode, and whether to receive direct messages.
+1. **Sources.** On a GitLab deployment, set the GitLab host, project and token file; on GitHub, set the repository (`owner/name`) and agent CLI, for example `/home/me/.local/bin/gh-agent`. Requests normally arrive through the agent account's notifications. A new Issue or comment mentioning the account arrives on the next poll; adding a mention by editing an existing Issue body does not. Post a new comment instead. For Feishu, set the bot CLI, chats, each chat's receive-all or mentions-only mode, and whether to receive direct messages.
 2. **Policy.** The two example rules can be edited or removed. Under **On each Source**, add the GitHub accounts and Feishu users who may ask for work; until a list has someone, no request can become a Ticket. With Feishu, a chat can be chosen to sync the list from, at startup and on **Sync now**.
 3. **Execution.** The directory root and a prepare command. To give each Ticket a checkout of the repository:
 
@@ -187,7 +203,7 @@ Health entries are grouped by responsibility:
 | `evals` | Unavailable Evals from the last hour with no later judgement or dismissal |
 | `assessment`, `launch`, `delivery`, `relay`, `notice`, `reply` | Stored work described in [003 Execution](003-execution.md); delivery counts waiting work, while reply covers Channel messages |
 | `worker` | Executor Session event handling; appears after its first failure |
-| `github`, `feishu`, `history` | Source polling, events and history recovery |
+| `github`, `gitlab`, `feishu`, `history` | Source polling, events and history recovery |
 | `sync:<source id>` | Allowed-list synchronization |
 
 A refusal has a status and `error`, its English text:
@@ -199,6 +215,7 @@ A refusal has a status and `error`, its English text:
 
 The blocks:
 
+- `source:gitlab`: `{"enabled": true, "config": {"host": "https://git.example.com", "project": "group/project", "tokenFile": "/home/me/.config/dsh-superagent/gitlab-token", "observeNotes": true, …}}`. The switches `observeIssues`, `observeMerges`, `observeNotes` and `observePipelines` are off by default.
 - `source:github`, `source:feishu`: `{"enabled": true, "config": {…}}`. GitHub's config has `repository` and `cli`, and the switches `observeIssues`, `observePulls`, `observeComments` and `observeCi`, off by default, which receive every new Issue, new pull request and comment in the repository and the default branch's CI; Feishu's has `cli`, `chats` as `[{"chatId": "oc_…", "name": "…", "listen": "mentions"}]` (or `"all"`), `directMessages`, and `otherChats` as `"none"` or `"mentions"`.
 - `policy`: `{"rules": […], "sources": {"github": {"allowed": [{"id": "<login>"}], "bots": [{"id": "dependabot[bot]"}]}, "feishu": {"allowed": [{"id": "ou_…", "name": "…"}], "syncChat": "oc_…", "admission": {"oc_…": {"unlistedAddressed": "explicit"}}}}}`. `bots` lists the bots whose messages may become inferred candidates. An `admission` row is keyed by chat id, `other` or `direct` for Feishu, and by `issues`, `pulls`, `comments` or `ci` for GitHub; an unset cell takes its default (see [002 Authorization](002-authorization.md)).
 - `eval`: `mode`, `timeoutSeconds` and `model`.
