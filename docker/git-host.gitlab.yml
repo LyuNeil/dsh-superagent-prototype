@@ -1,0 +1,3 @@
+# The GitLab Source plugin. GitHub's entry stays inserted but unused, since its Source is off.
+- id: dsh-superagent-gitlab
+  disabled: false

@@ -1,0 +1,12 @@
+#!/bin/sh
+# The agent account's GitHub CLI, for a `DSH_GIT_HOST=github` deployment. Sign it in once:
+#
+#   docker-compose -f docker/docker-compose.yml exec superagent \
+#     sh -c 'mkdir -p /data/gh && GH_CONFIG_DIR=/data/gh gh auth login'
+#   docker-compose -f docker/docker-compose.yml exec superagent gh-agent api user --jq .login
+#
+# Its credentials live in $GH_CONFIG_DIR_AGENT, never in another account's configuration.
+# dsh-superagent writes a `gh` shim that runs this wrapper, so Executor Sessions act as the agent account.
+config="${GH_CONFIG_DIR_AGENT:-/data/gh}"
+mkdir -p "$config"
+GH_CONFIG_DIR="$config" exec gh "$@"

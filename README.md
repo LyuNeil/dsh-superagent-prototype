@@ -34,6 +34,14 @@ Read the numbered documents in order; each builds only on the ones before it.
 
 `pnpm check` runs the typecheck, the tests and the build.
 
+## Running it in a container
+
+[docker/](docker/README.md) packages the bundle as a long-running service with a web panel,
+on a two-layer image: a base image that carries the toolchain (Debian, Node, git, the
+GitHub CLI, Python with pip and a build toolchain, lark-cli) and an application image that
+adds the bundle and DSH itself. Rebuild the base only when that environment changes; the
+application image rebuilds in seconds.
+
 ## License
 
 [MIT](LICENSE)

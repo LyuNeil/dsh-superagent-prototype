@@ -1,0 +1,50 @@
+# dsh-superagent as a container service.
+#
+#   cp docker/.env.example docker/.env    # model provider; then sign the agent's gh in
+#   docker compose -f docker/docker-compose.yml up -d --build
+#   docker compose -f docker/docker-compose.yml logs -f
+#
+# Host networking is required, not a convenience: DSH's web server may bind only a
+# concrete local address and dsh-superagent's management API refuses anything but
+# 127.0.0.1, because it checks the Host header and grants panel permissions. With host
+# networking the panel answers on 127.0.0.1:3082 of the Docker host and nothing is
+# exposed to the network. Reach it over SSH (`ssh -L 3082:127.0.0.1:3082 <host>`) or run
+# the browser on the host itself.
+# A fixed project name keeps the volume's name (`dsh-superagent_superagent-data`)
+# independent of the directory this file is copied to.
+name: dsh-superagent
+
+services:
+  superagent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        BASE_IMAGE: ${BASE_IMAGE:-dsh-superagent-base:bookworm}
+        DSH_VERSION: ${DSH_VERSION:-0.2.1-rc.3}
+        PNPM_VERSION: ${PNPM_VERSION:-11.7.0}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmmirror.com}
+    image: dsh-superagent:local
+    container_name: dsh-superagent
+    restart: unless-stopped
+    init: true
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      # Fixed paths inside the container; the volume below keeps them across recreates.
+      # `dsh plugin add` and `npm install -g` write only to the image, never to /data.
+      DSH_HOME: /data/dsh
+      DSH_SUPERAGENT_STATE_DIR: /data/state
+    volumes:
+      - superagent-data:/data
+      # Optional: a local clone of the target repository for the prepare command
+      # (`git worktree add`), so each Ticket gets its own checkout without a fresh
+      # clone. Workers push branches from it, so it is mounted read-write.
+      # - ${REPO_CLONE:-./repo}:/repo
+    # A worker runs builds and dev servers; keep them from eating the host.
+    mem_limit: ${MEM_LIMIT:-8g}
+    cpus: ${CPU_LIMIT:-4}
+
+volumes:
+  superagent-data:

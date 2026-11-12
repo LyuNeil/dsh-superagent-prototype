@@ -3,3 +3,7 @@ lib/
 .artifacts/
 .env
 coverage/
+docker/.env
+# A vendored gh release tarball is a local cache for an air-gapped base build, not source.
+docker/base/gh/*.tar.gz
+.pnpm-store

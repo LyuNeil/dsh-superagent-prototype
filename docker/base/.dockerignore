@@ -1,0 +1,2 @@
+# Build context of docker/base/Dockerfile: the base image installs only its packages.
+# A vendored gh tarball in gh/ is kept, so an air-gapped build can use it.

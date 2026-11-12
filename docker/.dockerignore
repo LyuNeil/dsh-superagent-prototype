@@ -1,0 +1,10 @@
+# Build context: only what the Dockerfile copies. A local node_modules or a built lib/
+# from the host may be for another platform, and .artifacts/ holds runtime state.
+.git
+node_modules
+lib
+.artifacts
+coverage
+docker/.env
+# The base image's vendored gh tarball is 13 MB and belongs only to that build context.
+docker/base/gh/*.tar.gz

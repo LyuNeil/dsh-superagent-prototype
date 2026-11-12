@@ -1,0 +1,10 @@
+#!/bin/sh
+# The Feishu bot's lark-cli. Configure it once, inside the container:
+#
+#   docker-compose -f docker/docker-compose.yml exec -it superagent \
+#     sh -c 'printf "%s" "$LARK_APP_SECRET" | lark-cli config init --app-id "$LARK_APP_ID" --app-secret-stdin'
+#   docker-compose -f docker/docker-compose.yml exec superagent lark-cli config strict-mode bot --global
+#
+# The app secret arrives on standard input and is never echoed; lark-cli keeps it in its own config directory on the
+# volume. Only the bot identity is allowed, so a worker that runs `lark-cli` acts as the bot, never as a person.
+LARKSUITE_CLI_CONFIG_DIR="${LARKSUITE_CLI_CONFIG_DIR:-/data/lark-cli}" exec lark-cli "$@"

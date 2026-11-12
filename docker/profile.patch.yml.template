@@ -1,0 +1,35 @@
+# dsh-superagent profile configuration for the container service.
+#
+# Copied to $DSH_HOME/profiles/<profile>/cordis.patch.yml by docker/entrypoint.sh on
+# first start. Existing files are never overwritten: edit the copy on the volume.
+#
+# The web server must bind 127.0.0.1: dsh-superagent's management API refuses any other
+# address. The container therefore runs with host networking.
+- id: webserver
+  config:
+    host: 127.0.0.1
+    port: ${DSH_SUPERAGENT_PORT}
+- id: dsh-superagent
+  config:
+    stateDir: ${DSH_SUPERAGENT_STATE_DIR}
+# ${GIT_HOST_BLOCK}
+# The model provider every Session uses. `apiKeyEnv` names an environment variable,
+# not the key itself; setup removes KEY/TOKEN/SECRET variables from worker shells.
+- id: llm-pi-ai
+  name: "@deepseek-ai/dsh-llm-pi-ai"
+  config:
+    providers:
+      ${DSH_LLM_PROVIDER}:
+        displayName: ${DSH_LLM_PROVIDER}
+        apiKeyEnv: ${DSH_LLM_API_KEY_ENV}
+        api: openai-completions
+        baseURL: ${DSH_LLM_BASE_URL}
+        models:
+          - id: ${DSH_LLM_MODEL}
+            name: ${DSH_LLM_MODEL}
+# The profile's default model, used when Settings -> Eval / Execution names no model.
+- id: agent-default-model
+  name: "@deepseek-ai/dsh-agent-default-model"
+  config:
+    provider: ${DSH_LLM_PROVIDER}
+    model: ${DSH_LLM_MODEL}
