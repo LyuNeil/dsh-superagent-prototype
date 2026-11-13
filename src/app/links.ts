@@ -69,5 +69,5 @@ export async function candidateCard(host: LinkHost, candidate: Candidate) {
     ...handedBack.length ? { handed_back: handedBack } : {}, ...relatedTickets(candidate.tickets, host.deployment),
     ...(delivered.length ? { delivered_to: delivered } : {}), ...(referenced.length ? { referenced_tickets: referenced.map(ticket => ticketCard(ticket, host.deployment)) } : {}),
     next_action: candidate.strength === 'explicit' ? 'Route it with orchestrator_route as dispatch says: accept, attach, stop or ignore.'
-      : 'Ignore it with orchestrator_route if the card shows it touches no enabled rule; else assess it with orchestrator_eval, orchestrator_eval_read, then orchestrator_eval_decide.' }
+      : 'The card alone rarely settles an inferred candidate: check the Policy section against every enabled rule under the candidate\'s policy_version, and ignore it with orchestrator_route only when no rule can apply or the card is plainly unrelated; else assess it with orchestrator_eval, orchestrator_eval_read, then orchestrator_eval_decide.' }
 }
