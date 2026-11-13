@@ -20,6 +20,8 @@ The ticket directory is already a clone of the repository, on a branch named `ag
 
    The answer is the merge request as JSON: take its `iid` and `web_url`.
 
+   When the ticket started from a GitLab issue — the assignment's source trigger is `gitlab/issues/<iid>` — add `Closes #<iid>` as the last line of the description, so GitLab closes that issue when the merge request is merged. Never write a closing keyword when the ticket started from a merge request or another Source: `#<n>` on GitLab always names issue `n`, whose numbering is separate from merge requests'.
+
    The description must carry a **verification section**, labelled as such, that states: the tests actually run and their counts; the data any behaviour conclusion rests on (a recording, a synthetic fixture, or none); and which conclusions are verified findings versus exploratory hypotheses awaiting data. A capability without real-data evidence is stated as a hypothesis with its assumptions, never as a finished ability. A description that claims an ability without naming its evidence is not ready, whatever the code does.
 3. Call `orchestrator_report` with `state: progress` and `mr_iid` set to that `iid`, so the ticket binds its merge request. This is bookkeeping; it sends no message.
 

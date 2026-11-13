@@ -12,6 +12,9 @@ import { ConfigHistory, Field, Fields, ModelField, SourceField, numberOf, useBlo
 import { localized, valueLabel, when } from './text.ts'
 import { Hint, LabelValue, LoadMore, LoadState, Section, StatusHead } from './widgets.tsx'
 
+/** A fresh rule ID without `crypto.randomUUID`, which exists only in secure contexts and is undefined over plain HTTP. */
+const newRuleId = (): string => crypto.randomUUID?.() ?? `rule-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
+
 export function EvalStatus({ filter, window, paused }: { filter: DecisionFilter; window: '24h' | undefined; paused: boolean }) {
   const { t, call, navigate } = usePanel()
   const [limit, setLimit] = useState(30)
@@ -152,7 +155,7 @@ function PolicyBlock() {
   const reveal = (target: EventTarget) => { if (target instanceof Element
     && target.closest('.dt-rules')) setExpanded(new Set(policy.rules.map(rule => rule.id))) }
   const part = (id: string) => (policy.sources[id] ?? { allowed: [] }) as Part
-  const add = () => insert({ id: crypto.randomUUID(), name: '', enabled: true, instruction: '' }, policy.rules.length)
+  const add = () => insert({ id: newRuleId(), name: '', enabled: true, instruction: '' }, policy.rules.length)
   return <form className="dt-form dt-block" onSubmit={event => { void draft.submit(event) }}
     onInvalidCapture={event => reveal(event.target)}>
     <Fields disabled={draft.busy}>
@@ -167,7 +170,7 @@ function PolicyBlock() {
           expanded={expanded.has(rule.id)}
           onToggle={() => toggle(rule.id)} onChange={next => edit({ rules: policy.rules.map((item, position) => position === index ? next
             : item) })}
-          onDuplicate={() => insert({ ...rule, id: crypto.randomUUID(), name: `${rule.name}${t('copySuffix')}`.slice(0, LIMITS.ruleName) },
+          onDuplicate={() => insert({ ...rule, id: newRuleId(), name: `${rule.name}${t('copySuffix')}`.slice(0, LIMITS.ruleName) },
             index + 1)}
           onRemove={() => edit({ rules: policy.rules.filter((_, position) => position !== index) })} />)}</ul>
             : <Hint>{t('rulesEmpty')}</Hint>}
