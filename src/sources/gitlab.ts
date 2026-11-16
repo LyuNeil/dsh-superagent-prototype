@@ -63,8 +63,8 @@ export const gitlabKind: SourceKind<GitlabConfig> = {
   fields: [
     { key: 'host', type: 'text', pattern: 'https://[A-Za-z0-9.\\-]+(:\\d+)?', label: { zh: 'GitLab 地址', en: 'GitLab host' },
       hint: { zh: '实例根地址，例如 https://git.voyah.cn。保存时用它和 token 校验项目，然后重启 dsh-superagent。', en: 'The instance root, such as https://git.voyah.cn. Saving checks the project with it and the token, then restarts dsh-superagent.' } },
-    { key: 'project', type: 'text', pattern: '[A-Za-z0-9_.\\-]+/[A-Za-z0-9_.\\-]+', label: { zh: '监听的仓库', en: 'Repository' },
-      hint: { zh: '写作 group/project。这个来源接收这个项目的通知和讨论。', en: 'Written group/project. This Source receives this project\'s notices and discussion.' } },
+    { key: 'project', type: 'text', pattern: '(\\d+|([A-Za-z0-9_.\\-]+/)+[A-Za-z0-9_.\\-]+)?', label: { zh: '监听的仓库', en: 'Repository' },
+      hint: { zh: '写作 group/project，支持多级群组（group/subgroup/project），或直接填项目的数字 ID。这个来源接收这个项目的通知和讨论。', en: 'Written group/project, nested groups allowed (group/subgroup/project), or the project\'s numeric ID. This Source receives this project\'s notices and discussion.' } },
     { key: 'tokenFile', type: 'text', pattern: '/.*', label: { zh: 'token 文件', en: 'Token file' },
       hint: { zh: '绝对路径，文件里是一个有 api 权限的 access token。token 只从这里读取，不写进设置或日志。', en: 'An absolute path to a file holding an access token with the api scope. The token is read only from here, never written to settings or logs.' } },
     { key: 'targetBranch', type: 'text', label: { zh: 'MR 的目标分支', en: 'MR target branch' },
@@ -115,7 +115,7 @@ export const gitlabKind: SourceKind<GitlabConfig> = {
   },
   environment: {
     variables: [
-      { key: 'DSH_SUPERAGENT_GITLAB_REPOSITORY', description: { zh: '这个来源监听的仓库，group/project。智能体在这里开的 MR，分支最后一段是 DSH_SUPERAGENT_NAME 时会关联到工单', en: 'The repository this Source watches, as group/project. An MR the agent opens here from a branch whose last path segment is DSH_SUPERAGENT_NAME binds to the ticket' } },
+      { key: 'DSH_SUPERAGENT_GITLAB_REPOSITORY', description: { zh: '这个来源监听的仓库，group/project（支持多级群组）或项目数字 ID。智能体在这里开的 MR，分支最后一段是 DSH_SUPERAGENT_NAME 时会关联到工单', en: 'The repository this Source watches, as group/project (nested groups allowed) or a numeric project ID. An MR the agent opens here from a branch whose last path segment is DSH_SUPERAGENT_NAME binds to the ticket' } },
       { key: 'DSH_SUPERAGENT_GITLAB_ACCOUNT', description: { zh: '智能体的 GitLab 账号；git 推送和 gitlab 命令都用这个 token', en: 'The agent\'s GitLab account. git push and the gitlab command both use this token' } },
       { key: 'DSH_SUPERAGENT_GITLAB_COMMIT_EMAIL', description: { zh: '智能体账号的提交邮箱。这里的 git 没有身份：按提示词写明的作者提交，没有写明时用智能体账号和这个邮箱', en: 'Commit email of the agent\'s account. git has no identity here: commit as the author these instructions name, or as the agent\'s account with this email when they name none' } },
       { key: 'DSH_SUPERAGENT_GITLAB_IID', description: { zh: '接下工单的 Issue 或 MR 编号；工单不是从 GitLab 来的时为空', en: 'Number of the Issue or MR that started the ticket; empty when the ticket did not start on GitLab' } },

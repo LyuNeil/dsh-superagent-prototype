@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Config, executable, machineOf, resolveDeployment, resolveFeishuBot, type Machine, type Probe } from '../src/deployment.ts'
+import { Config, executable, GitlabAccountsSchema, machineOf, resolveDeployment, resolveFeishuBot, type Machine, type Probe } from '../src/deployment.ts'
 import { gitEnv } from './fixtures/git.ts'
 
 const exec = promisify(execFile)
@@ -53,6 +53,16 @@ describe('configuration schema', () => {
   it('names keys the configuration does not define, and where the values of older keys live now', () => {
     const raw = minimal({ repository: 'acme/widgets', repositoryPath: '/srv/widgets', blockedCommands: [], author: { name: 'Alice' }, extra: 1 })
     expect(() => machineOf(Config(raw))).toThrow('keys it does not use: repository (now on the GitHub or GitLab Source), repositoryPath (now in the prepare command of the Execution settings), blockedCommands (now in the Execution settings), author (now prompt text), extra;')
+  })
+  it('accepts a GitLab project as a single-level path, a nested-group path, or a numeric ID', () => {
+    const project = (value: string) => GitlabAccountsSchema.shape.project.safeParse(value).success
+    expect(project('team/widgets')).toBe(true)
+    expect(project('vads/id-data/j6p/data/scene_mining')).toBe(true)
+    expect(project('9016253')).toBe(true)
+    expect(project('')).toBe(true)
+    expect(project('group/')).toBe(false)
+    expect(project('/group')).toBe(false)
+    expect(project('a/b c')).toBe(false)
   })
 })
 

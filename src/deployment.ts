@@ -49,12 +49,13 @@ export const GithubAccountsSchema = z.object({
 })
 export const FeishuBotSchema = z.object({ cli: z.string().trim().default('') })
 /**
- * GitLab Source fields setup reads. `host` is the instance root, `project` the `group/project` path, and `tokenFile` an
- * absolute path to a personal access token with `api` scope; the token is read at setup and never kept in settings.
+ * GitLab Source fields setup reads. `host` is the instance root, `project` the `group/subgroup/project` path (nested groups
+ * allowed) or the project's numeric ID, and `tokenFile` an absolute path to a personal access token with `api` scope; the
+ * token is read at setup and never kept in settings.
  */
 export const GitlabAccountsSchema = z.object({
   host: z.string().trim().regex(/^(https:\/\/[A-Za-z0-9.-]+(?::\d+)?)?$/, 'https://host').default(''),
-  project: z.string().trim().regex(/^([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)?$/, 'group/project').default(''),
+  project: z.string().trim().regex(/^(\d+|([A-Za-z0-9_.-]+\/)+[A-Za-z0-9_.-]+)?$/, 'group/project path, nested groups allowed, or the numeric project ID').default(''),
   tokenFile: z.string().trim().regex(/^(\/[^\0]*)?$/, 'absolute path').default(''),
 })
 /** Source configuration keys that affect deployment setup and trigger a restart when changed. */
@@ -65,7 +66,7 @@ export const SETUP_FIELDS: Readonly<Record<string, readonly string[]>> = {
 export interface GithubAccount { cli: string; login: string; noreply: string }
 export interface GitlabAccount { host: string; project: string; token: string; login: string; userId: number; noreply: string; defaultBranch: string }
 export interface Deployment extends Machine {
-  /** The repository the agent works on: `owner/name` on GitHub, `group/project` on GitLab. */
+  /** The repository the agent works on: `owner/name` on GitHub, `group/project` (or a project ID) on GitLab. */
   repository: string
   /** The git host whose Source resolved `repository`; absent means GitHub, as before GitLab support existed. */
   git?: 'github' | 'gitlab'
